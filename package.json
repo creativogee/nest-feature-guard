@@ -1,6 +1,6 @@
 {
   "name": "nest-feature-guard",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "A powerful, NestJS-first feature flag guard and decorator library with Redis caching support. Perfect for implementing feature toggles, A/B testing, gradual rollouts, and user-specific feature access control.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
