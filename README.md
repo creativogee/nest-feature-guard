@@ -23,6 +23,20 @@ A powerful, NestJS-first feature flag guard and decorator library that provides 
 
 ## 📦 Installation
 
+### Basic Installation
+
+```bash
+npm install nest-feature-guard
+# or
+yarn add nest-feature-guard
+# or
+pnpm add nest-feature-guard
+```
+
+### With Redis Support
+
+If you want to use the built-in Redis implementation:
+
 ```bash
 npm install nest-feature-guard ioredis
 # or
@@ -30,6 +44,8 @@ yarn add nest-feature-guard ioredis
 # or
 pnpm add nest-feature-guard ioredis
 ```
+
+**Note**: `ioredis` is an optional peer dependency. You only need to install it if you plan to use the `RedisFeatureGuardStore`. You can implement custom storage backends using the `FeatureGuardStore` interface without Redis.
 
 ## 🏗️ Architecture Overview
 
@@ -43,51 +59,65 @@ The library consists of several key components:
 
 ## 🚀 Quick Start
 
-### 1. Basic Setup with Redis
+### Module Setup
+
+Configure the FeatureGuardModule by choosing your storage backend:
 
 ```typescript
 import { Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import Redis from 'ioredis';
+import Redis from 'ioredis'; // Only needed for Redis option
 import {
   FeatureGuard,
-  RedisFeatureGuardStore,
+  RedisFeatureGuardStore, // Only needed for Redis option
   FEATURE_GUARD_STORE,
   FEATURE_GUARD_REFLECTOR,
 } from 'nest-feature-guard';
+import { YourCustomStore } from './your-custom-store'; // Only needed for Custom option
 
+// Redis setup (skip if using custom store)
 const redis = new Redis({
   host: 'localhost',
   port: 6379,
 });
 
-const featureGuardStore = new RedisFeatureGuardStore(redis);
-
 @Module({
   providers: [
     Reflector,
+
+    // 🔄 CHOOSE ONE: Redis OR Custom Store
+    // Option A: Redis (install ioredis first)
     {
       provide: FEATURE_GUARD_STORE,
-      useValue: featureGuardStore,
+      useValue: new RedisFeatureGuardStore(redis),
     },
+
+    // Option B: Custom Store (implement FeatureGuardStore interface)
+    // YourCustomStore,
+    // {
+    //   provide: FEATURE_GUARD_STORE,
+    //   useExisting: YourCustomStore,
+    // },
+
+    // 📌 Always include these
     {
       provide: FEATURE_GUARD_REFLECTOR,
       useExisting: Reflector,
     },
-    {
-      provide: FeatureGuard,
-      useFactory: (reflector: Reflector, store: RedisFeatureGuardStore) => {
-        return new FeatureGuard(store, reflector);
-      },
-      inject: [FEATURE_GUARD_REFLECTOR, FEATURE_GUARD_STORE],
-    },
+    FeatureGuard,
   ],
   exports: [FeatureGuard, FEATURE_GUARD_STORE, FEATURE_GUARD_REFLECTOR],
 })
 export class FeatureGuardModule {}
 ```
 
-### 2. Request Interface Setup
+**💡 Setup Guide:**
+
+1. **For Redis**: Uncomment Redis provider, comment out Custom provider
+2. **For Custom Store**: Uncomment Custom provider, comment out Redis provider
+3. **For Custom Store**: See [Custom Store Implementation](#-custom-store-implementation) for example implementations
+
+### Request Interface Setup
 
 Ensure your request interface includes the required fields:
 
@@ -101,7 +131,7 @@ export interface AppRequest extends Request {
 }
 ```
 
-### 3. Middleware for User Context
+### Middleware for User Context
 
 Set up middleware to populate user information:
 
@@ -144,10 +174,9 @@ export class BetaController {
     return { message: 'Welcome to the beta dashboard!' };
   }
 
-  // Multiple feature flags can be applied
+  // Multiple feature flags can be applied in a single decorator
   @Post('feedback')
-  @FeatureFlag('beta_access')
-  @FeatureFlag('feedback_system')
+  @FeatureFlag(['beta_access', 'feedback_system'])
   submitBetaFeedback(@Body() feedback: any) {
     return { message: 'Feedback submitted successfully' };
   }
@@ -156,34 +185,41 @@ export class BetaController {
 
 ### Service-Level Feature Detection
 
-Use `SERVICE` scope to detect feature flags without blocking access:
+Use `SERVICE` scope to detect feature flags without blocking access.
 
 ```typescript
 import { Controller, Get, Req } from '@nestjs/common';
-import { FeatureFlag, FeatureFlagScope, FeatureGuard } from 'nest-feature-guard';
+import { FeatureFlag, FeatureFlagScope } from 'nest-feature-guard';
 import { AppRequest } from './interfaces/app-request.interface';
 
 @Controller('products')
 export class ProductController {
+  constructor(private readonly productService: ProductService) {}
+
   @Get()
   @FeatureFlag('enhanced_search', { scope: FeatureFlagScope.SERVICE })
   async getProducts(@Req() request: AppRequest) {
-    const products = await this.productService.getProducts();
+    // request.__feature_flags will be populated with the feature flag states
+    return this.productService.getProducts(request);
+  }
 
-    // Check if enhanced search is enabled for this user
-    if (FeatureGuard.isFeatureEnabled(request, 'enhanced_search')) {
-      // Add enhanced search capabilities
-      return this.productService.getProductsWithEnhancedSearch();
-    }
-
-    return products;
+  @Get('enhanced')
+  @FeatureFlag(['enhanced_search', 'ai_recommendations'], { scope: FeatureFlagScope.SERVICE })
+  async getEnhancedProducts(@Req() request: AppRequest) {
+    // All feature flag states are now available on request.__feature_flags
+    return this.productService.getEnhancedProducts(request);
   }
 }
 ```
 
+**Key Points:**
+
+- `SERVICE` scope always allows requests to proceed
+- Feature flag states are set on `request.__feature_flags`
+
 ### Business Logic Integration
 
-Use feature flags within your services:
+Services handle the actual business logic using feature flags:
 
 ```typescript
 import { Injectable } from '@nestjs/common';
@@ -191,25 +227,38 @@ import { FeatureGuard } from 'nest-feature-guard';
 import { AppRequest } from './interfaces/app-request.interface';
 
 @Injectable()
-export class NotificationService {
-  async sendNotification(request: AppRequest, message: string) {
-    // Check for email notifications feature
-    if (FeatureGuard.isFeatureEnabled(request, 'email_notifications')) {
-      await this.sendEmailNotification(message);
+export class ProductService {
+  async getProducts(request: AppRequest) {
+    const products = await this.fetchBasicProducts();
+
+    // Business logic: Check feature flags and enhance accordingly
+    if (FeatureGuard.isFeatureEnabled(request, 'enhanced_search')) {
+      return this.addEnhancedSearchCapabilities(products);
     }
 
-    // Check for push notifications feature
-    if (FeatureGuard.isFeatureEnabled(request, 'push_notifications')) {
-      await this.sendPushNotification(message);
+    return products;
+  }
+
+  async getEnhancedProducts(request: AppRequest) {
+    let products = await this.fetchBasicProducts();
+
+    // Progressive enhancement based on multiple flags
+    if (FeatureGuard.isFeatureEnabled(request, 'enhanced_search')) {
+      products = this.addSearchCapabilities(products);
     }
 
-    // Fallback to basic notification
-    await this.sendBasicNotification(message);
+    if (FeatureGuard.isFeatureEnabled(request, 'ai_recommendations')) {
+      products = await this.addAIRecommendations(products);
+    }
+
+    return products;
   }
 }
 ```
 
-### Advanced Feature Flag Combinations
+### Advanced Usage Patterns
+
+Complex scenarios, A/B testing, and progressive enhancement:
 
 ```typescript
 @Controller('analytics')
@@ -233,6 +282,22 @@ export class AnalyticsController {
     }
 
     return basicData;
+  }
+
+  // A/B testing example
+  @Get('experimental')
+  @FeatureFlag(['experiment_access'], { scope: FeatureFlagScope.SERVICE })
+  async getExperimentalFeature(@Req() request: AppRequest) {
+    // Determine which variant to show
+    if (FeatureGuard.isFeatureEnabled(request, 'variant_a')) {
+      return this.getVariantA();
+    }
+
+    if (FeatureGuard.isFeatureEnabled(request, 'variant_b')) {
+      return this.getVariantB();
+    }
+
+    return this.getDefaultVariant();
   }
 }
 ```
@@ -328,60 +393,124 @@ export class FeatureRolloutService {
 
 ## 🔌 Custom Store Implementation
 
-Implement your own store backend:
+Implement your own store backend using the `FeatureGuardStore` interface. Here are examples for different storage strategies:
+
+### In-Memory Store (Development/Testing)
 
 ```typescript
+import { Injectable } from '@nestjs/common';
 import { FeatureGuardStore, SetFeatureFlagOptions } from 'nest-feature-guard';
 
 @Injectable()
-export class DatabaseFeatureFlagStore implements FeatureGuardStore {
-  constructor(
-    @InjectRepository(FeatureFlag)
-    private readonly featureFlagRepo: Repository<FeatureFlag>,
-  ) {}
+export class InMemoryFeatureStore implements FeatureGuardStore {
+  private features = new Map<string, { enabled: boolean; userIds?: string[] }>();
 
   async setFeatureFlag({ flag, enabled, userIds }: SetFeatureFlagOptions): Promise<void> {
-    const feature = await this.featureFlagRepo.findOne({ where: { name: flag } });
-
-    if (feature) {
-      feature.enabled = enabled;
-      feature.userIds = userIds || [];
-      await this.featureFlagRepo.save(feature);
-    } else {
-      await this.featureFlagRepo.save({
-        name: flag,
-        enabled,
-        userIds: userIds || [],
-      });
-    }
+    this.features.set(flag, { enabled, userIds });
   }
 
   async getFeature(flag: string): Promise<{ enabled: boolean; userIds?: string[] } | null> {
-    const feature = await this.featureFlagRepo.findOne({ where: { name: flag } });
-    return feature ? { enabled: feature.enabled, userIds: feature.userIds } : null;
+    return this.features.get(flag) || null;
   }
 
   async hasFeatureFlag(flag: string, userId: string): Promise<boolean> {
-    const feature = await this.featureFlagRepo.findOne({ where: { name: flag } });
-    if (!feature) return false;
-
-    // If feature is disabled, no one has access
-    if (!feature.enabled) {
-      return false;
-    }
-
-    const hasUsers = feature.userIds && feature.userIds.length > 0;
-
-    // For global features (no users list), everyone has access
-    if (!hasUsers) {
-      return true;
-    }
-
-    // For targeted features, only users in the list have access
-    const isUserInList = feature.userIds.includes(userId);
-    return isUserInList;
+    const feature = this.features.get(flag);
+    if (!feature || !feature.enabled) return false;
+    if (!feature.userIds || feature.userIds.length === 0) return true;
+    return feature.userIds.includes(userId);
   }
 }
+```
+
+### Database Store (Production)
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { FeatureGuardStore, SetFeatureFlagOptions } from 'nest-feature-guard';
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+
+// TypeORM Entity for feature flags
+@Entity('feature_flags')
+export class FeatureFlag {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ unique: true })
+  flag: string;
+
+  @Column({ default: false })
+  enabled: boolean;
+
+  @Column('json', { nullable: true })
+  userIds: string[] | null;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: 'timestamp' })
+  updatedAt: Date;
+}
+
+@Injectable()
+export class DatabaseFeatureStore implements FeatureGuardStore {
+  constructor(
+    @InjectRepository(FeatureFlag)
+    private readonly featureFlagRepository: Repository<FeatureFlag>,
+  ) {}
+
+  async setFeatureFlag({ flag, enabled, userIds }: SetFeatureFlagOptions): Promise<void> {
+    await this.featureFlagRepository.upsert(
+      {
+        flag,
+        enabled,
+        userIds: userIds || null,
+      },
+      ['flag'], // conflict target
+    );
+  }
+
+  async getFeature(flag: string): Promise<{ enabled: boolean; userIds?: string[] } | null> {
+    const feature = await this.featureFlagRepository.findOne({ where: { flag } });
+
+    if (!feature) return null;
+
+    return {
+      enabled: feature.enabled,
+      userIds: feature.userIds || undefined,
+    };
+  }
+
+  async hasFeatureFlag(flag: string, userId: string): Promise<boolean> {
+    const feature = await this.featureFlagRepository.findOne({ where: { flag } });
+
+    if (!feature || !feature.enabled) return false;
+    if (!feature.userIds || feature.userIds.length === 0) return true;
+
+    return feature.userIds.includes(userId);
+  }
+}
+
+// Module setup with Database Store
+@Module({
+  imports: [TypeOrmModule.forFeature([FeatureFlag])],
+  providers: [
+    Reflector,
+    DatabaseFeatureStore,
+    {
+      provide: FEATURE_GUARD_STORE,
+      useExisting: DatabaseFeatureStore,
+    },
+    {
+      provide: FEATURE_GUARD_REFLECTOR,
+      useExisting: Reflector,
+    },
+    FeatureGuard,
+  ],
+  exports: [FeatureGuard, FEATURE_GUARD_STORE, FEATURE_GUARD_REFLECTOR, DatabaseFeatureStore],
+})
+export class FeatureGuardDatabaseModule {}
 ```
 
 ## 🧪 Testing
@@ -1086,14 +1215,38 @@ export class OptimizedFeatureFlagStore implements FeatureGuardStore {
 #### Signature
 
 ```typescript
-FeatureFlag(flag: string, options?: FeatureFlagOptions): MethodDecorator
+FeatureFlag(flags: string | string[], options?: FeatureFlagOptions): MethodDecorator
 ```
 
 #### Parameters
 
-- `flag`: The feature flag identifier (string)
+- `flags`: The feature flag identifier(s) - can be a single string or an array of strings
 - `options`: Optional configuration object
   - `scope`: `FeatureFlagScope.CONTROLLER` (default) or `FeatureFlagScope.SERVICE`
+
+#### Behavior
+
+When multiple flags are provided (either as an array or multiple decorators):
+
+- **CONTROLLER scope**: ALL flags must be enabled and the user must have access to ALL flags
+- **SERVICE scope**: All flags are evaluated and their states are set on the request object
+
+#### Examples
+
+```typescript
+// Single flag
+@FeatureFlag('beta_access')
+
+// Multiple flags in array (ALL must be satisfied)
+@FeatureFlag(['beta_access', 'feedback_system'])
+
+// Multiple decorators (ALL must be satisfied)
+@FeatureFlag('beta_access')
+@FeatureFlag('feedback_system')
+
+// Service scope with multiple flags
+@FeatureFlag(['enhanced_search', 'ai_recommendations'], { scope: FeatureFlagScope.SERVICE })
+```
 
 ### FeatureGuardStore Interface
 
@@ -1103,33 +1256,12 @@ FeatureFlag(flag: string, options?: FeatureFlagOptions): MethodDecorator
 - `getFeature(flag: string): Promise<{ enabled: boolean; userIds?: string[] } | null>`
 - `hasFeatureFlag(flag: string, userId: string): Promise<boolean>`
 
-### Redis Key Structure
-
-The Redis implementation uses the following key structure:
-
-```
-{prefix}:{flag}:info     # Hash containing feature metadata
-{prefix}:{flag}:users    # Set containing user IDs with access
-```
-
-Default prefix: `crudmates:feature-guard`
-
-Example keys:
-
-```
-crudmates:feature-guard:beta_feature:info
-crudmates:feature-guard:beta_feature:users
-```
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- Built with ❤️ for the ever-growing NestJS community
-- Inspired by modern feature flag management needs
-
----
-
-**Made with ❤️ by [Gbenga Omowole](https://github.com/creativogee)**
+- Built for the NestJS ecosystem
+- Inspired by modern feature flag management best practices
+- Thanks to all users!

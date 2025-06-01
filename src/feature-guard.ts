@@ -132,26 +132,35 @@ export class FeatureGuard implements CanActivate {
       return true;
     }
 
-    const flag = this.reflector.get<string>(FEATURE_FLAG_KEY, context.getHandler());
+    const flags = this.reflector.get<string[]>(FEATURE_FLAG_KEY, context.getHandler());
     const options = this.reflector.get<FeatureFlagOptions | undefined>(
       FEATURE_FLAG_OPTIONS_KEY,
       context.getHandler(),
     );
 
-    if (flag === undefined || flag === null) return false;
+    if (flags === undefined || flags.length === 0) return false;
 
-    const feature = await this.store.getFeature(flag);
-    const hasFlag = userId !== undefined ? await this.store.hasFeatureFlag(flag, userId) : false;
+    const featureFlags = await Promise.all(
+      flags.map(async (flag) => {
+        const feature = await this.store.getFeature(flag);
+        const hasFlag =
+          userId !== undefined ? await this.store.hasFeatureFlag(flag, userId) : false;
+        return { flag, feature, hasFlag };
+      }),
+    );
 
     // Always set the feature flag value on the request object for business logic use
     request.__feature_flags = {
       ...request.__feature_flags,
-      [flag]: feature?.enabled === true && hasFlag,
+      ...featureFlags.reduce((acc, { flag, feature, hasFlag }) => {
+        acc[flag] = feature?.enabled === true && hasFlag;
+        return acc;
+      }, {} as Record<string, boolean>),
     };
 
     // If not SERVICE scope, also check access (CONTROLLER scope blocks access)
     if (options?.scope !== FeatureFlagScope.SERVICE) {
-      if (!feature?.enabled || !hasFlag) {
+      if (featureFlags.some(({ feature, hasFlag }) => !feature?.enabled || !hasFlag)) {
         return false;
       }
     }
@@ -216,12 +225,12 @@ export class FeatureGuard implements CanActivate {
  * Decorator for enabling feature flag protection on routes or methods.
  *
  * This decorator applies the FeatureGuard to a method and configures it with
- * the specified feature flag and options. It supports two main scopes:
+ * the specified feature flag(s) and options. It supports two main scopes:
  *
- * - **CONTROLLER** (default): Blocks access if feature is disabled
+ * - **CONTROLLER** (default): Blocks access if any feature is disabled
  * - **SERVICE**: Always allows access but sets feature flag state for business logic
  *
- * @param {string} flag - The feature flag identifier
+ * @param {string | string[]} flags - The feature flag identifier(s)
  * @param {FeatureFlagOptions} [options] - Optional configuration for the feature flag
  * @param {FeatureFlagScope} [options.scope] - The scope of the feature flag (CONTROLLER or SERVICE)
  * @returns {MethodDecorator} A method decorator that applies the feature guard
@@ -238,10 +247,17 @@ export class FeatureGuard implements CanActivate {
  *   }
  *
  *   @Post('feedback')
- *   @FeatureFlag('beta_access')
- *   @FeatureFlag('feedback_system') // Multiple flags can be applied
+ *   @FeatureFlag(['beta_access', 'feedback_system']) // Multiple flags in single decorator
  *   submitFeedback(@Body() feedback: any) {
  *     return { message: 'Feedback submitted' };
+ *   }
+ *
+ *   // Alternative: Multiple separate decorators (still works)
+ *   @Post('advanced-feedback')
+ *   @FeatureFlag('beta_access')
+ *   @FeatureFlag('feedback_system')
+ *   submitAdvancedFeedback(@Body() feedback: any) {
+ *     return { message: 'Advanced feedback submitted' };
  *   }
  * }
  *
@@ -257,6 +273,23 @@ export class FeatureGuard implements CanActivate {
  *     if (FeatureGuard.isFeatureEnabled(request, 'enhanced_search')) {
  *       // Add enhanced search capabilities
  *       return this.productService.getProductsWithEnhancedSearch();
+ *     }
+ *
+ *     return products;
+ *   }
+ *
+ *   // Multiple service flags in one decorator
+ *   @Get('enhanced')
+ *   @FeatureFlag(['enhanced_search', 'ai_recommendations'], { scope: FeatureFlagScope.SERVICE })
+ *   async getEnhancedProducts(@Req() request: FeatureGuardRequest) {
+ *     const products = await this.productService.getProducts();
+ *
+ *     if (FeatureGuard.isFeatureEnabled(request, 'enhanced_search')) {
+ *       products.searchCapabilities = 'enhanced';
+ *     }
+ *
+ *     if (FeatureGuard.isFeatureEnabled(request, 'ai_recommendations')) {
+ *       products.recommendations = await this.getAIRecommendations();
  *     }
  *
  *     return products;
@@ -285,9 +318,15 @@ export class FeatureGuard implements CanActivate {
  * }
  * ```
  */
-export function FeatureFlag(flag: string, options?: FeatureFlagOptions): MethodDecorator {
+export function FeatureFlag(
+  flags: string | string[],
+  options?: FeatureFlagOptions,
+): MethodDecorator {
+  // Normalize to array for consistent handling
+  const flagArray = Array.isArray(flags) ? flags : [flags];
+
   return applyDecorators(
-    SetMetadata(FEATURE_FLAG_KEY, flag),
+    SetMetadata(FEATURE_FLAG_KEY, flagArray),
     SetMetadata(FEATURE_FLAG_OPTIONS_KEY, options),
     UseGuards(FeatureGuard),
   );

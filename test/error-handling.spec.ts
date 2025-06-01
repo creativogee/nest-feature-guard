@@ -52,7 +52,7 @@ describe('Error Handling', () => {
     it('should handle Redis connection errors gracefully in getFeature', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -65,7 +65,7 @@ describe('Error Handling', () => {
     it('should handle Redis connection errors gracefully in hasFeatureFlag', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -79,7 +79,7 @@ describe('Error Handling', () => {
     it('should handle timeout errors', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -92,7 +92,7 @@ describe('Error Handling', () => {
     it('should handle network errors', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -112,7 +112,7 @@ describe('Error Handling', () => {
 
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValue(request);
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
         return undefined;
       });
@@ -208,7 +208,7 @@ describe('Error Handling', () => {
     it('should handle null responses from store', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -222,7 +222,7 @@ describe('Error Handling', () => {
     it('should handle undefined responses from store', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -236,7 +236,7 @@ describe('Error Handling', () => {
     it('should handle malformed feature objects', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 

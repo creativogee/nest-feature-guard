@@ -70,10 +70,20 @@ describe('FeatureGuard', () => {
       expect(result).toBe(false);
     });
 
+    it('should deny access when empty array is set', async () => {
+      reflector.get.mockImplementation((metadataKey: unknown) => {
+        if (metadataKey === FEATURE_FLAG_KEY) return [];
+        return undefined;
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(false);
+    });
+
     it('should deny access when feature is disabled', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -87,7 +97,7 @@ describe('FeatureGuard', () => {
     it('should deny access when user does not have flag', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -101,7 +111,7 @@ describe('FeatureGuard', () => {
     it('should allow access when feature is enabled and user has flag', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -110,6 +120,87 @@ describe('FeatureGuard', () => {
 
       const result = await guard.canActivate(context);
       expect(result).toBe(true);
+    });
+
+    it('should handle multiple feature flags - allow when all are enabled', async () => {
+      const flags = ['feature1', 'feature2'];
+      reflector.get.mockImplementation((metadataKey: unknown) => {
+        if (metadataKey === FEATURE_FLAG_KEY) return flags;
+        return undefined;
+      });
+
+      cache.getFeature.mockImplementation(async (flag: string) => ({ enabled: true }));
+      cache.hasFeatureFlag.mockImplementation(async (flag: string, userId: string) => true);
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+      expect(cache.getFeature).toHaveBeenCalledTimes(2);
+      expect(cache.hasFeatureFlag).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle multiple feature flags - deny when any is disabled', async () => {
+      const flags = ['feature1', 'feature2', 'feature3'];
+      reflector.get.mockImplementation((metadataKey: unknown) => {
+        if (metadataKey === FEATURE_FLAG_KEY) return flags;
+        return undefined;
+      });
+
+      cache.getFeature.mockImplementation(async (flag: string) => {
+        if (flag === 'feature2') return { enabled: false };
+        return { enabled: true };
+      });
+      cache.hasFeatureFlag.mockImplementation(async (flag: string, userId: string) => true);
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(false);
+    });
+
+    it('should handle multiple feature flags - deny when user lacks any flag', async () => {
+      const flags = ['feature1', 'feature2'];
+      reflector.get.mockImplementation((metadataKey: unknown) => {
+        if (metadataKey === FEATURE_FLAG_KEY) return flags;
+        return undefined;
+      });
+
+      cache.getFeature.mockImplementation(async (flag: string) => ({ enabled: true }));
+      cache.hasFeatureFlag.mockImplementation(async (flag: string, userId: string) => {
+        return flag === 'feature1'; // User only has feature1
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(false);
+    });
+
+    it('should set multiple feature flags on request for SERVICE scope', async () => {
+      const flags = ['feature1', 'feature2', 'feature3'];
+      const request = {
+        __user_id: 'test-user',
+        __is_admin: false,
+        __feature_flags: {},
+      };
+
+      (context.switchToHttp().getRequest as jest.Mock).mockReturnValue(request);
+      reflector.get.mockImplementation((metadataKey: unknown) => {
+        if (metadataKey === FEATURE_FLAG_KEY) return flags;
+        if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
+        return undefined;
+      });
+
+      cache.getFeature.mockImplementation(async (flag: string) => {
+        if (flag === 'feature2') return { enabled: false };
+        return { enabled: true };
+      });
+      cache.hasFeatureFlag.mockImplementation(async (flag: string, userId: string) => {
+        return flag !== 'feature3'; // User doesn't have feature3
+      });
+
+      const result = await guard.canActivate(context);
+      expect(result).toBe(true);
+      expect(request.__feature_flags).toEqual({
+        feature1: true,  // enabled and user has it
+        feature2: false, // disabled
+        feature3: false, // enabled but user doesn't have it
+      });
     });
 
     it('should set feature flag on request for SERVICE scope', async () => {
@@ -122,7 +213,7 @@ describe('FeatureGuard', () => {
 
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValue(request);
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
         return undefined;
       });
@@ -145,7 +236,7 @@ describe('FeatureGuard', () => {
 
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValue(request);
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
         return undefined;
       });
@@ -162,7 +253,7 @@ describe('FeatureGuard', () => {
     it('should handle when feature is null', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -183,7 +274,7 @@ describe('FeatureGuard', () => {
 
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValue(request);
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -206,7 +297,7 @@ describe('FeatureGuard', () => {
 
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValue(request);
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
         return undefined;
       });
@@ -225,7 +316,7 @@ describe('FeatureGuard', () => {
     it('should handle explicit CONTROLLER scope', async () => {
       const flag = 'test_feature';
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.CONTROLLER };
         return undefined;
       });
@@ -247,7 +338,7 @@ describe('FeatureGuard', () => {
 
       (context.switchToHttp().getRequest as jest.Mock).mockReturnValue(request);
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 

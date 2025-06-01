@@ -55,7 +55,7 @@ describe('Integration Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -156,7 +156,7 @@ describe('Integration Tests', () => {
 
       // Test Group A users
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flagA;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flagA];
         return undefined;
       });
 
@@ -174,7 +174,7 @@ describe('Integration Tests', () => {
 
       // Test Group B users
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flagB;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flagB];
         return undefined;
       });
 
@@ -212,49 +212,49 @@ describe('Integration Tests', () => {
       const premiumContext = createMockContext('premium_user1');
 
       // Should have premium features
-      reflector.get.mockReturnValue('premium_features');
+      reflector.get.mockReturnValue(['premium_features']);
       expect(await guard.canActivate(premiumContext)).toBe(true);
 
       // Should have beta features
-      reflector.get.mockReturnValue('beta_features');
+      reflector.get.mockReturnValue(['beta_features']);
       expect(await guard.canActivate(premiumContext)).toBe(true);
 
       // Should have admin panel (global)
-      reflector.get.mockReturnValue('admin_panel');
+      reflector.get.mockReturnValue(['admin_panel']);
       expect(await guard.canActivate(premiumContext)).toBe(true);
 
       // Should NOT have experimental
-      reflector.get.mockReturnValue('experimental');
+      reflector.get.mockReturnValue(['experimental']);
       expect(await guard.canActivate(premiumContext)).toBe(false);
 
       // Test beta user access
       const betaContext = createMockContext('beta_user1');
 
       // Should NOT have premium features
-      reflector.get.mockReturnValue('premium_features');
+      reflector.get.mockReturnValue(['premium_features']);
       expect(await guard.canActivate(betaContext)).toBe(false);
 
       // Should have beta features
-      reflector.get.mockReturnValue('beta_features');
+      reflector.get.mockReturnValue(['beta_features']);
       expect(await guard.canActivate(betaContext)).toBe(true);
 
       // Should have experimental
-      reflector.get.mockReturnValue('experimental');
+      reflector.get.mockReturnValue(['experimental']);
       expect(await guard.canActivate(betaContext)).toBe(true);
 
       // Test regular user access
       const regularContext = createMockContext('regular_user');
 
       // Should NOT have premium features
-      reflector.get.mockReturnValue('premium_features');
+      reflector.get.mockReturnValue(['premium_features']);
       expect(await guard.canActivate(regularContext)).toBe(false);
 
       // Should NOT have beta features
-      reflector.get.mockReturnValue('beta_features');
+      reflector.get.mockReturnValue(['beta_features']);
       expect(await guard.canActivate(regularContext)).toBe(false);
 
       // Should have admin panel (global)
-      reflector.get.mockReturnValue('admin_panel');
+      reflector.get.mockReturnValue(['admin_panel']);
       expect(await guard.canActivate(regularContext)).toBe(true);
     });
   });
@@ -294,7 +294,7 @@ describe('Integration Tests', () => {
 
       // Test controller scope (should block if no access)
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return controllerFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [controllerFlag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.CONTROLLER };
         return undefined;
       });
@@ -304,7 +304,7 @@ describe('Integration Tests', () => {
 
       // Test service scope (should always pass but set flag)
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return serviceFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [serviceFlag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
         return undefined;
       });
@@ -351,7 +351,7 @@ describe('Integration Tests', () => {
       // Process each flag
       for (const flag of flags) {
         reflector.get.mockImplementation((metadataKey: unknown) => {
-          if (metadataKey === FEATURE_FLAG_KEY) return flag;
+          if (metadataKey === FEATURE_FLAG_KEY) return [flag];
           if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
           return undefined;
         });
@@ -397,7 +397,7 @@ describe('Integration Tests', () => {
       const adminContext = createMockContext(undefined, true); // Admin with no userId
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return restrictedFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [restrictedFlag];
         return undefined;
       });
 
@@ -406,7 +406,7 @@ describe('Integration Tests', () => {
 
       // Test admin access to regular feature
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return regularFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [regularFlag];
         return undefined;
       });
 
@@ -417,7 +417,7 @@ describe('Integration Tests', () => {
       const regularContext = createMockContext('regular_user');
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return restrictedFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [restrictedFlag];
         return undefined;
       });
 
@@ -429,7 +429,7 @@ describe('Integration Tests', () => {
       const request = adminServiceContext.switchToHttp().getRequest();
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return restrictedFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [restrictedFlag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
         return undefined;
       });
@@ -462,7 +462,7 @@ describe('Integration Tests', () => {
         });
 
         reflector.get.mockImplementation((metadataKey: unknown) => {
-          if (metadataKey === FEATURE_FLAG_KEY) return flag;
+          if (metadataKey === FEATURE_FLAG_KEY) return [flag];
           return undefined;
         });
 
@@ -543,7 +543,7 @@ describe('Integration Tests', () => {
         // Test allowed features
         for (const feature of testCase.features) {
           reflector.get.mockImplementation((metadataKey: unknown) => {
-            if (metadataKey === FEATURE_FLAG_KEY) return feature;
+            if (metadataKey === FEATURE_FLAG_KEY) return [feature];
             return undefined;
           });
 
@@ -555,7 +555,7 @@ describe('Integration Tests', () => {
         // Test denied features
         for (const feature of testCase.deniedFeatures) {
           reflector.get.mockImplementation((metadataKey: unknown) => {
-            if (metadataKey === FEATURE_FLAG_KEY) return feature;
+            if (metadataKey === FEATURE_FLAG_KEY) return [feature];
             return undefined;
           });
 
@@ -588,7 +588,7 @@ describe('Integration Tests', () => {
       // Test both features work
       for (const flag of [oldFlag, newFlag]) {
         reflector.get.mockImplementation((metadataKey: unknown) => {
-          if (metadataKey === FEATURE_FLAG_KEY) return flag;
+          if (metadataKey === FEATURE_FLAG_KEY) return [flag];
           return undefined;
         });
 
@@ -607,7 +607,7 @@ describe('Integration Tests', () => {
 
       // Test old feature is disabled
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return oldFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [oldFlag];
         return undefined;
       });
 
@@ -619,7 +619,7 @@ describe('Integration Tests', () => {
 
       // Test new feature still works
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return newFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [newFlag];
         return undefined;
       });
 

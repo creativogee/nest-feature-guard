@@ -55,7 +55,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return longFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [longFlag];
         return undefined;
       });
 
@@ -75,7 +75,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -125,7 +125,7 @@ describe('Edge Cases and Boundary Tests', () => {
         });
 
         reflector.get.mockImplementation((metadataKey: unknown) => {
-          if (metadataKey === FEATURE_FLAG_KEY) return flag;
+          if (metadataKey === FEATURE_FLAG_KEY) return [flag];
           return undefined;
         });
 
@@ -180,7 +180,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -202,7 +202,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return emptyFlag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [emptyFlag];
         return undefined;
       });
 
@@ -222,7 +222,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -251,7 +251,7 @@ describe('Edge Cases and Boundary Tests', () => {
       const testUsers = [maxUsers[0], maxUsers[50000], maxUsers[99999]];
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -277,7 +277,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -297,7 +297,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -317,7 +317,7 @@ describe('Edge Cases and Boundary Tests', () => {
       const userId = 'test_user';
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -367,7 +367,7 @@ describe('Edge Cases and Boundary Tests', () => {
         });
 
         reflector.get.mockImplementation((metadataKey: unknown) => {
-          if (metadataKey === FEATURE_FLAG_KEY) return flag;
+          if (metadataKey === FEATURE_FLAG_KEY) return [flag];
           return undefined;
         });
 
@@ -399,7 +399,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -420,7 +420,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -463,7 +463,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         if (metadataKey === FEATURE_FLAG_OPTIONS_KEY) return { scope: FeatureFlagScope.SERVICE };
         return undefined;
       });
@@ -530,7 +530,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -703,7 +703,7 @@ describe('Edge Cases and Boundary Tests', () => {
         });
 
         reflector.get.mockImplementation((metadataKey: unknown) => {
-          if (metadataKey === FEATURE_FLAG_KEY) return flag;
+          if (metadataKey === FEATURE_FLAG_KEY) return [flag];
           return undefined;
         });
 
@@ -745,7 +745,7 @@ describe('Edge Cases and Boundary Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 

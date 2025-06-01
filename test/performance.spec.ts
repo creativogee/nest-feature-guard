@@ -48,7 +48,7 @@ describe('Performance Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
@@ -222,7 +222,9 @@ describe('Performance Tests', () => {
       expect(feature?.userIds).toHaveLength(10);
       expect(feature?.userIds).toEqual(expect.arrayContaining(newUsers));
       // Verify old users are not present
-      expect(feature?.userIds).not.toEqual(expect.arrayContaining(['initial_user0', 'initial_user1']));
+      expect(feature?.userIds).not.toEqual(
+        expect.arrayContaining(['initial_user0', 'initial_user1']),
+      );
 
       const duration = endTime - startTime;
       expect(duration).toBeLessThan(500); // Should be fast
@@ -288,7 +290,7 @@ describe('Performance Tests', () => {
       }
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flags[0]; // Use first flag for guard tests
+        if (metadataKey === FEATURE_FLAG_KEY) return [flags[0]]; // Use first flag for guard tests
         return undefined;
       });
 
@@ -357,7 +359,7 @@ describe('Performance Tests', () => {
       });
 
       reflector.get.mockImplementation((metadataKey: unknown) => {
-        if (metadataKey === FEATURE_FLAG_KEY) return flag;
+        if (metadataKey === FEATURE_FLAG_KEY) return [flag];
         return undefined;
       });
 
